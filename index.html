@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MVG Gravel Ride 2026</title>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+    <!-- App styles -->
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>MVG Gravel Ride</h1>
+                <p>Apr 19–23, 2026 · SE Utah</p>
+            </div>
+            <nav id="day-nav"></nav>
+        </aside>
+
+        <!-- Main content -->
+        <div class="main">
+            <!-- Route info bar -->
+            <div class="route-info">
+                <h2 id="route-title">—</h2>
+                <div class="route-meta">
+                    <span id="route-date"></span>
+                    <span id="route-dist"></span>
+                    <span id="route-elev"></span>
+                    <span id="route-time"></span>
+                </div>
+                <div id="weather-status"></div>
+            </div>
+
+            <!-- Map -->
+            <div class="map-wrap">
+                <div id="map"></div>
+                <div id="map-tooltip"></div>
+                <div id="loading" style="display: none;">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Elevation chart -->
+            <div class="chart-wrap">
+                <canvas id="elevation-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- App scripts -->
+    <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

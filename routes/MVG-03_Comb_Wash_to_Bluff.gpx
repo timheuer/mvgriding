@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns:gpxdata="http://www.cluetrust.com/XML/GPXDATA/1/0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="http://ridewithgps.com/" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.cluetrust.com/XML/GPXDATA/1/0 http://www.cluetrust.com/Schemas/gpxdata10.xsd">
+  <metadata>
+    <name>MVG-03 Comb Wash to Bluff</name>
+    <link href="https://ridewithgps.com/routes/48208544">
+      <text>MVG-03 Comb Wash to Bluff</text>
+    </link>
+    <time>2024-08-28T10:42:40Z</time>
+  </metadata>
+  <rte>
+    <name>MVG-03 Comb Wash to Bluff</name>
+    <rtept lat="37.52342" lon="-109.63378">
+      <name>Start</name>
+      <cmt>Start of route</cmt>
+    </rtept>
+    <rtept lat="37.52191" lon="-109.63236">
+      <name>Right</name>
+      <cmt>Start from the Butler Wash Ruins Trailhead. Turn RIGHT onto UT-95 N</cmt>
+    </rtept>
+    <rtept lat="37.51147" lon="-109.65385">
+      <name>Left</name>
+      <cmt>Turn LEFT onto S Comb Wash Rd</cmt>
+    </rtept>
+    <rtept lat="37.50384" lon="-109.65546">
+      <name>Slight Right</name>
+      <cmt>Keep RIGHT to stay on Comb Wash Rd</cmt>
+    </rtept>
+    <rtept lat="37.5036" lon="-109.65602">
+      <name>Slight Left</name>
+      <cmt>Keep LEFT to stay on Comb Wash Rd</cmt>
+    </rtept>
+    <rtept lat="37.402713" lon="-109.65659">
+      <name>Generic</name>
+      <cmt>Petroglyphs on the LEFT</cmt>
+    </rtept>
+    <rtept lat="37.381928" lon="-109.657287">
+      <name>Generic</name>
+      <cmt>Petroglyphs on the LEFT</cmt>
+    </rtept>
+    <rtept lat="37.28699" lon="-109.66855">
+      <name>Slight Right</name>
+      <cmt>Keep right onto Comb Wash Road, CR 235</cmt>
+    </rtept>
+    <rtept lat="37.27359" lon="-109.67793">
+      <name>Left</name>
+      <cmt>Turn LEFT onto US 163</cmt>
+    </rtept>
+    <rtept lat="37.26552" lon="-109.62571">
+      <name>Straight</name>
+      <cmt>Continue onto US 191</cmt>
+    </rtept>
+    <rtept lat="37.26695" lon="-109.61073">
+      <name>Right</name>
+      <cmt>Turn RIGHT onto Sand Island Rd</cmt>
+    </rtept>
+    <rtept lat="37.26301" lon="-109.61308">
+      <name>Slight Right</name>
+      <cmt>Keep SLIGHT RIGHT onto Sand Island Rd</cmt>
+    </rtept>
+    <rtept lat="37.261673" lon="-109.618631">
+      <name>Uturn</name>
+      <cmt>Sand Island Petroglyphs. Turn around point.</cmt>
+    </rtept>
+    <rtept lat="37.26167" lon="-109.61864">
+      <name>Uturn</name>
+      <cmt>Make a U-turn onto Sand Island Road, CR 275</cmt>
+    </rtept>
+    <rtept lat="37.26301" lon="-109.61308">
+      <name>Slight Left</name>
+      <cmt>Turn SLIGHT LEFT onto Sand Island Rd</cmt>
+    </rtept>
+    <rtept lat="37.26695" lon="-109.61073">
+      <name>Right</name>
+      <cmt>Turn RIGHT onto US 191</cmt>
+    </rtept>
+    <rtept lat="37.28874" lon="-109.54274">
+      <name>Right</name>
+      <cmt>Turn RIGHT to end at Bluff Dwellings Resort &amp; Spa</cmt>
+    </rtept>
+    <rtept lat="37.28833" lon="-109.54194">
+      <name>End</name>
+      <cmt>End of route</cmt>
+    </rtept>
+  </rte>
+</gpx>
