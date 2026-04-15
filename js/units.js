@@ -1,4 +1,5 @@
-let metric = true;
+const STORAGE_KEY = 'units_metric';
+let metric = localStorage.getItem(STORAGE_KEY) !== 'false';
 
 const listeners = new Set();
 
@@ -8,6 +9,7 @@ export function isMetric() {
 
 export function setMetric(val) {
     metric = val;
+    localStorage.setItem(STORAGE_KEY, val);
     listeners.forEach((fn) => fn(metric));
 }
 

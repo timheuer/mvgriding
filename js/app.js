@@ -200,9 +200,13 @@ document.addEventListener('DOMContentLoaded', () => {
     map = initMap('map');
     buildNav();
 
-    // Unit toggle
+    // Unit toggle — restore saved preference
     const unitSwitch = document.getElementById('unit-switch');
     const unitLabel = unitSwitch.nextElementSibling;
+    if (!units.isMetric()) {
+        unitSwitch.checked = true;
+        unitLabel.textContent = unitLabel.dataset.imperial;
+    }
     unitSwitch.addEventListener('change', () => {
         const imperial = unitSwitch.checked;
         units.setMetric(!imperial);
