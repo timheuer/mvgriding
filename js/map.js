@@ -1,5 +1,6 @@
 import { findNearest, samplePoints } from './gpx.js';
 import { interpolateWeather, windDirLabel } from './weather.js';
+import * as units from './units.js';
 
 let map = null;
 let routeLayer = null;
@@ -47,6 +48,25 @@ export function clearMap() {
     currentRouteData = null;
     currentWeatherPoints = null;
 }
+
+function addLegend() {
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'map-legend');
+        div.innerHTML = `
+            <div class="legend-item"><span class="legend-line" style="background:#2563eb;"></span> Route</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#16a34a;"></span> Start</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#dc2626;"></span> Finish</div>
+            <div class="legend-item"><svg class="legend-icon" viewBox="0 0 12 12"><polyline points="2,9 6,3 10,9" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"/></svg> Direction</div>
+            <div class="legend-item"><svg class="legend-icon" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="4" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/><polyline points="7,9 12,3 17,9" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Wind</div>
+        `;
+        return div;
+    };
+    legend.addTo(map);
+    return legend;
+}
+
+let legendControl = null;
 
 export function renderRoute(routeData, weatherPoints) {
     clearMap();
@@ -143,6 +163,11 @@ export function renderRoute(routeData, weatherPoints) {
     if (weatherPoints && weatherPoints.length > 0) {
         renderWindArrows(weatherPoints);
     }
+
+    // Add legend
+    if (!legendControl) {
+        legendControl = addLegend();
+    }
 }
 
 function mapMouseOut() {
@@ -156,14 +181,16 @@ function mapMouseOut() {
 function showTooltip(event, pt, wx) {
     if (!tooltipEl) return;
 
-    const eleFt =
-        pt.eleFt !== null ? `${Math.round(pt.eleFt).toLocaleString()} ft` : '—';
+    const displayDist = units.dist(pt.dist);
+    const distLabel = units.isMetric() ? 'Km' : 'Mile';
+    const eleDisplay =
+        pt.eleFt !== null ? `${Math.round(units.elev(pt.eleFt)).toLocaleString()} ${units.elevUnit()}` : '—';
     const grade = pt.grade !== undefined ? `${pt.grade}%` : '—';
-    const temp =
-        wx.temp !== null ? `${Math.round(wx.temp)}°F` : 'No forecast';
-    const wind =
+    const tempDisplay =
+        wx.temp !== null ? `${Math.round(units.temp(wx.temp))}${units.tempUnit()}` : 'No forecast';
+    const windDisplay =
         wx.windSpeed !== null
-            ? `${Math.round(wx.windSpeed)} mph ${windDirLabel(wx.windDir)}`
+            ? `${Math.round(units.speed(wx.windSpeed))} ${units.speedUnit()} ${windDirLabel(wx.windDir)}`
             : 'No forecast';
     const modelInfo =
         wx.windModel || wx.tempModel
@@ -171,11 +198,11 @@ function showTooltip(event, pt, wx) {
             : '';
 
     tooltipEl.innerHTML = `
-    <div class="tt-row"><span class="tt-label">Mile</span><span class="tt-value">${pt.dist.toFixed(1)}</span></div>
-    <div class="tt-row"><span class="tt-label">Elevation</span><span class="tt-value">${eleFt}</span></div>
+    <div class="tt-row"><span class="tt-label">${distLabel}</span><span class="tt-value">${displayDist.toFixed(1)}</span></div>
+    <div class="tt-row"><span class="tt-label">Elevation</span><span class="tt-value">${eleDisplay}</span></div>
     <div class="tt-row"><span class="tt-label">Grade</span><span class="tt-value">${grade}</span></div>
-    <div class="tt-row"><span class="tt-label">Temp</span><span class="tt-value">${temp}</span></div>
-    <div class="tt-row"><span class="tt-label">Wind</span><span class="tt-value">${wind}</span></div>
+    <div class="tt-row"><span class="tt-label">Temp</span><span class="tt-value">${tempDisplay}</span></div>
+    <div class="tt-row"><span class="tt-label">Wind</span><span class="tt-value">${windDisplay}</span></div>
     ${modelInfo ? `<div class="tt-source">${modelInfo}</div>` : ''}
   `;
 

@@ -7,6 +7,7 @@ import {
 import { fetchWeatherForPoints } from './weather.js';
 import { initMap, renderRoute, highlightPoint, clearMap } from './map.js';
 import { renderElevationProfile, destroyChart } from './elevation.js';
+import * as units from './units.js';
 
 const DAYS = [
     {
@@ -50,6 +51,9 @@ const WIND_SAMPLE_INTERVAL = 2.5; // miles
 
 let currentDay = null;
 let map = null;
+let lastRouteData = null;
+let lastDay = null;
+let lastWeatherPoints = null;
 
 function buildNav() {
     const nav = document.getElementById('day-nav');
@@ -90,29 +94,33 @@ function showWeatherStatus(msg) {
 }
 
 function updateRouteInfo(routeData, day) {
-    const totalDist = routeData[routeData.length - 1]?.dist || 0;
+    const totalDistMi = routeData[routeData.length - 1]?.dist || 0;
     const hasEle = routeData.some((pt) => pt.eleFt !== null);
 
-    let elevGain = 0;
+    let elevGainFt = 0;
     if (hasEle) {
         for (let i = 1; i < routeData.length; i++) {
             const diff =
                 (routeData[i].eleFt || 0) - (routeData[i - 1].eleFt || 0);
-            if (diff > 0) elevGain += diff;
+            if (diff > 0) elevGainFt += diff;
         }
     }
 
-    const estTime = totalDist / 13;
+    const paceSpeed = units.speed(13);
+    const estTime = totalDistMi / 13;
     const hours = Math.floor(estTime);
     const mins = Math.round((estTime - hours) * 60);
 
+    const displayDist = units.dist(totalDistMi);
+    const displayElev = units.elev(elevGainFt);
+
     document.getElementById('route-title').textContent = day.name;
     document.getElementById('route-date').textContent = `Day ${day.day} — ${day.dateLabel}, 2026`;
-    document.getElementById('route-dist').textContent = `${totalDist.toFixed(1)} mi`;
+    document.getElementById('route-dist').textContent = `${displayDist.toFixed(1)} ${units.distUnit()}`;
     document.getElementById('route-elev').textContent = hasEle
-        ? `${Math.round(elevGain).toLocaleString()} ft gain`
+        ? `${Math.round(displayElev).toLocaleString()} ${units.elevUnit()} gain`
         : '—';
-    document.getElementById('route-time').textContent = `~${hours}h ${mins}m @ 13 mph`;
+    document.getElementById('route-time').textContent = `~${hours}h ${mins}m @ ${Math.round(paceSpeed)} ${units.speedUnit()}`;
 }
 
 async function selectDay(dayNum) {
@@ -168,6 +176,11 @@ async function selectDay(dayNum) {
         // Render elevation chart
         renderElevationProfile(routeData, 'elevation-chart');
 
+        // Store for re-render on unit toggle
+        lastRouteData = routeData;
+        lastDay = day;
+        lastWeatherPoints = weatherPoints;
+
         showLoading(false);
     } catch (e) {
         console.error('Failed to load route:', e);
@@ -186,5 +199,25 @@ window.addEventListener('chart-hover', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     map = initMap('map');
     buildNav();
+
+    // Unit toggle
+    const unitSwitch = document.getElementById('unit-switch');
+    const unitLabel = unitSwitch.nextElementSibling;
+    unitSwitch.addEventListener('change', () => {
+        const imperial = unitSwitch.checked;
+        units.setMetric(!imperial);
+        unitLabel.textContent = imperial ? unitLabel.dataset.imperial : unitLabel.dataset.metric;
+    });
+
+    // Re-render displays when units change
+    units.onUnitsChange(() => {
+        if (lastRouteData && lastDay) {
+            updateRouteInfo(lastRouteData, lastDay);
+        }
+        if (lastRouteData) {
+            renderElevationProfile(lastRouteData, 'elevation-chart');
+        }
+    });
+
     selectDay(1);
 });

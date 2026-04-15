@@ -1,3 +1,5 @@
+import * as units from './units.js';
+
 let chart = null;
 let routeDataRef = null;
 
@@ -25,8 +27,11 @@ export function renderElevationProfile(routeData, canvasId) {
     canvas.style.display = 'block';
     canvas.parentElement.querySelector('.no-elevation')?.remove();
 
-    const labels = routeData.map((pt) => pt.dist.toFixed(1));
-    const elevations = routeData.map((pt) => pt.eleFt);
+    const labels = routeData.map((pt) => units.dist(pt.dist).toFixed(1));
+    const elevations = routeData.map((pt) => pt.eleFt !== null ? units.elev(pt.eleFt) : null);
+
+    const distUnitLabel = `Distance (${units.distUnit()})`;
+    const elevUnitLabel = `Elevation (${units.elevUnit()})`;
 
     chart = new Chart(canvas, {
         type: 'line',
@@ -34,7 +39,7 @@ export function renderElevationProfile(routeData, canvasId) {
             labels,
             datasets: [
                 {
-                    label: 'Elevation (ft)',
+                    label: elevUnitLabel,
                     data: elevations,
                     borderColor: '#2563eb',
                     backgroundColor: 'rgba(37, 99, 235, 0.08)',
@@ -61,7 +66,7 @@ export function renderElevationProfile(routeData, canvasId) {
                         label: (item) => {
                             const val = item.raw;
                             return val !== null
-                                ? `${Math.round(val).toLocaleString()} ft`
+                                ? `${Math.round(val).toLocaleString()} ${units.elevUnit()}`
                                 : 'N/A';
                         },
                     },
@@ -69,7 +74,7 @@ export function renderElevationProfile(routeData, canvasId) {
             },
             scales: {
                 x: {
-                    title: { display: true, text: 'Distance (mi)', font: { size: 12 } },
+                    title: { display: true, text: distUnitLabel, font: { size: 12 } },
                     ticks: {
                         maxTicksLimit: 15,
                         callback: (val, idx) => {
@@ -80,7 +85,7 @@ export function renderElevationProfile(routeData, canvasId) {
                     grid: { display: false },
                 },
                 y: {
-                    title: { display: true, text: 'Elevation (ft)', font: { size: 12 } },
+                    title: { display: true, text: elevUnitLabel, font: { size: 12 } },
                     ticks: {
                         callback: (val) => val.toLocaleString(),
                     },
