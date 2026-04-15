@@ -62,7 +62,7 @@ export function renderElevationProfile(routeData, canvasId) {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        title: (items) => `Mile ${items[0].label}`,
+                        title: (items) => `${units.isMetric() ? 'Km' : 'Mile'} ${items[0].label}`,
                         label: (item) => {
                             const val = item.raw;
                             return val !== null
