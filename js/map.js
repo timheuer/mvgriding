@@ -5,6 +5,7 @@ import * as units from './units.js';
 let map = null;
 let routeLayer = null;
 let windLayer = null;
+let milemarkerLayer = null;
 let hoverMarker = null;
 let tooltipEl = null;
 let currentRouteData = null;
@@ -40,6 +41,10 @@ export function clearMap() {
         map.removeLayer(windLayer);
         windLayer = null;
     }
+    if (milemarkerLayer) {
+        map.removeLayer(milemarkerLayer);
+        milemarkerLayer = null;
+    }
     if (hoverMarker) {
         map.removeLayer(hoverMarker);
         hoverMarker = null;
@@ -58,6 +63,7 @@ function addLegend() {
             <div class="legend-item"><span class="legend-dot" style="background:#16a34a;"></span> Start</div>
             <div class="legend-item"><span class="legend-dot" style="background:#dc2626;"></span> Finish</div>
             <div class="legend-item"><svg class="legend-icon" viewBox="0 0 12 12"><polyline points="2,9 6,3 10,9" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"/></svg> Direction</div>
+            <div class="legend-item"><span class="legend-mile">5</span> Distance</div>
             <div class="legend-item"><svg class="legend-icon" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="4" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/><polyline points="7,9 12,3 17,9" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Wind</div>
         `;
         return div;
@@ -84,8 +90,11 @@ export function renderRoute(routeData, weatherPoints) {
         opacity: 0.85,
     }).addTo(routeLayer);
 
-    // Directional arrows along the route every 5 miles
+    // Directional arrows along the route every mile
     renderDirectionArrows(routeData);
+
+    // Distance markers every 5 mi/km
+    renderMileMarkers(routeData);
 
     // Start/end markers
     if (routeData.length > 0) {
@@ -264,6 +273,34 @@ function renderDirectionArrows(routeData) {
         });
 
         L.marker([pt.lat, pt.lon], { icon, interactive: false }).addTo(routeLayer);
+    }
+}
+
+function renderMileMarkers(routeData) {
+    if (milemarkerLayer) {
+        map.removeLayer(milemarkerLayer);
+    }
+    milemarkerLayer = L.layerGroup().addTo(map);
+
+    const INTERVAL_MI = 5;
+    const sampled = samplePoints(routeData, INTERVAL_MI);
+
+    for (const pt of sampled) {
+        if (pt.dist < 0.1) continue; // skip start
+        const displayDist = Math.round(units.dist(pt.dist));
+        const icon = L.divIcon({
+            className: 'mile-marker',
+            html: `<span>${displayDist}</span>`,
+            iconSize: [24, 16],
+            iconAnchor: [12, 8],
+        });
+        L.marker([pt.lat, pt.lon], { icon, interactive: false }).addTo(milemarkerLayer);
+    }
+}
+
+export function refreshMileMarkers() {
+    if (currentRouteData) {
+        renderMileMarkers(currentRouteData);
     }
 }
 

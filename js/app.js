@@ -5,7 +5,7 @@ import {
     samplePoints,
 } from './gpx.js';
 import { fetchWeatherForPoints } from './weather.js';
-import { initMap, renderRoute, highlightPoint, clearMap } from './map.js';
+import { initMap, renderRoute, highlightPoint, clearMap, refreshMileMarkers } from './map.js';
 import { renderElevationProfile, destroyChart } from './elevation.js';
 import * as units from './units.js';
 
@@ -221,6 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (lastRouteData) {
             renderElevationProfile(lastRouteData, 'elevation-chart');
         }
+        refreshMileMarkers();
     });
 
     selectDay(1);
