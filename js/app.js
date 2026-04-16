@@ -251,56 +251,75 @@ function deselectClimb() {
 
 // --- Day-button weather pill ---
 
+// Cache of per-day midpoint info so pill refreshes on pace/unit changes don't need to reparse.
+const dayMidpointCache = new Map(); // day -> { lat, lon, midDist }
+const daySummaryCache = new Map();  // day -> summary object
+
+async function getDayMidpoint(d) {
+    if (dayMidpointCache.has(d.day)) return dayMidpointCache.get(d.day);
+
+    let info = null;
+    const cached = routeCache.get(d.day);
+    if (cached?.routeData?.length) {
+        const rd = cached.routeData;
+        const midIdx = Math.floor(rd.length / 2);
+        info = { lat: rd[midIdx].lat, lon: rd[midIdx].lon, midDist: rd[rd.length - 1].dist / 2 };
+    } else {
+        try {
+            const resp = await fetch(d.file);
+            const xml = await resp.text();
+            const parsed = parseGPX(xml);
+            if (parsed.trackpoints.length) {
+                const rd = computeRouteData(parsed.trackpoints);
+                const midIdx = Math.floor(rd.length / 2);
+                info = { lat: rd[midIdx].lat, lon: rd[midIdx].lon, midDist: rd[rd.length - 1].dist / 2 };
+            }
+        } catch (_) { /* fall back */ }
+    }
+    if (!info) info = { lat: 37.4, lon: -109.5, midDist: 25 };
+    dayMidpointCache.set(d.day, info);
+    return info;
+}
+
 async function prefetchDaySummaries() {
     await Promise.all(DAYS.map(async (d) => {
-        const midLat = 37.4; // fallback; will be replaced once we know the real midpoint
-        const midLon = -109.5;
-        // Prefer using the first trackpoint of each route if available in cache
-        let lat = midLat, lon = midLon;
-        const cached = routeCache.get(d.day);
-        if (cached?.routeData?.length) {
-            const mid = cached.routeData[Math.floor(cached.routeData.length / 2)];
-            lat = mid.lat; lon = mid.lon;
-        } else {
-            // Light pre-parse (no elevation fetch) just for midpoint
-            try {
-                const resp = await fetch(d.file);
-                const xml = await resp.text();
-                const parsed = parseGPX(xml);
-                if (parsed.trackpoints.length) {
-                    const mid = parsed.trackpoints[Math.floor(parsed.trackpoints.length / 2)];
-                    lat = mid.lat; lon = mid.lon;
-                }
-            } catch (_) { /* fall back */ }
-        }
-        const summary = await fetchDaySummary(lat, lon, d.date);
-        updateDayWxPill(d.day, summary);
+        const mid = await getDayMidpoint(d);
+        const summary = await fetchDaySummary(mid.lat, mid.lon, d.date);
+        if (summary) daySummaryCache.set(d.day, summary);
+        updateDayWxPill(d.day, summary, mid.midDist);
     }));
 }
 
-function updateDayWxPill(dayNum, summary) {
+function updateDayWxPill(dayNum, summary, midDist) {
     const pill = document.querySelector(`.day-wx[data-day="${dayNum}"]`);
     if (!pill) return;
     pill.classList.remove('loading');
     if (!summary) { pill.textContent = ''; return; }
+
+    // Estimated arrival hour at the route midpoint at current pace
+    const arrivalHour = Math.max(0, Math.min(23,
+        Math.round(DEFAULT_START_HOUR + (midDist ?? 0) / pace)));
+
+    const tempF = summary.hourlyTemp?.[arrivalHour] ?? summary.tempMax;
+    const windMph = summary.hourlyWind?.[arrivalHour] ?? summary.windMax;
+
     const icon = weatherCodeIcon(summary.weatherCode);
-    const tMax = summary.tempMax !== null
-        ? `${Math.round(units.temp(summary.tempMax))}${units.tempUnit()}`
+    const t = tempF !== null && tempF !== undefined
+        ? `${Math.round(units.temp(tempF))}${units.tempUnit()}`
         : '—';
-    const wind = summary.windMax !== null
-        ? `${Math.round(units.speed(summary.windMax))} ${units.speedUnit()}`
+    const wind = windMph !== null && windMph !== undefined
+        ? `${Math.round(units.speed(windMph))} ${units.speedUnit()}`
         : '';
-    pill.innerHTML = `<span class="wx-icon">${icon}</span><span>${tMax}</span>${wind ? `<span>· ${wind}</span>` : ''}`;
+    pill.innerHTML = `<span class="wx-icon">${icon}</span><span>${t}</span>${wind ? `<span>· ${wind}</span>` : ''}`;
 }
 
 function refreshAllDayWxPills() {
-    // Re-render with current units from whatever we already fetched (re-query summary cache)
+    // Re-render from cached summaries (no network) with current pace + units
     DAYS.forEach(async (d) => {
-        const cached = routeCache.get(d.day);
-        const lat = cached?.routeData?.length ? cached.routeData[Math.floor(cached.routeData.length / 2)].lat : 37.4;
-        const lon = cached?.routeData?.length ? cached.routeData[Math.floor(cached.routeData.length / 2)].lon : -109.5;
-        const s = await fetchDaySummary(lat, lon, d.date);
-        updateDayWxPill(d.day, s);
+        const mid = await getDayMidpoint(d);
+        const summary = daySummaryCache.get(d.day) || await fetchDaySummary(mid.lat, mid.lon, d.date);
+        if (summary) daySummaryCache.set(d.day, summary);
+        updateDayWxPill(d.day, summary, mid.midDist);
     });
 }
 
@@ -490,6 +509,9 @@ async function handlePaceChange(newPace) {
     localStorage.setItem(PACE_KEY, String(newPace));
     document.getElementById('pace-value').textContent =
         `${Math.round(units.speed(pace))} ${units.speedUnit()}`;
+
+    // Day-button pills show temp at arrival-at-midpoint; arrival hour shifts with pace.
+    refreshAllDayWxPills();
 
     // If a flyover is in progress, rescale its duration to the new pace
     // while preserving current position.
@@ -703,6 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Refresh weather
     document.getElementById('refresh-weather').addEventListener('click', async () => {
         clearWeatherCache();
+        daySummaryCache.clear();
         showToast('Refreshing weather…');
         const activeDay = currentDay;
         currentDay = null;

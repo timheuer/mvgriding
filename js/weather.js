@@ -33,7 +33,7 @@ export function clearWeatherCache() {
         const toDelete = [];
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
-            if (k && k.startsWith(CACHE_PREFIX)) toDelete.push(k);
+            if (k && (k.startsWith(CACHE_PREFIX) || k.startsWith('wx4sum_') || k.startsWith('wx3sum_'))) toDelete.push(k);
         }
         toDelete.forEach((k) => localStorage.removeItem(k));
     } catch (_) { }
@@ -178,8 +178,10 @@ export async function recomputeForPace(sampledPoints, dateStr, pace, startHour =
 }
 
 // Lightweight one-call daily summary for a single point (used on day-buttons).
+// Fetches daily min/max plus hourly temperature+wind so callers can look up the
+// value at an estimated arrival hour without refetching when pace changes.
 export async function fetchDaySummary(lat, lon, dateStr) {
-    const key = `wx3sum_${lat.toFixed(2)}_${lon.toFixed(2)}_${dateStr}`;
+    const key = `wx4sum_${lat.toFixed(2)}_${lon.toFixed(2)}_${dateStr}`;
     try {
         const raw = localStorage.getItem(key);
         if (raw) {
@@ -190,17 +192,22 @@ export async function fetchDaySummary(lat, lon, dateStr) {
 
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}` +
         `&daily=temperature_2m_max,temperature_2m_min,wind_speed_10m_max,weather_code` +
+        `&hourly=temperature_2m,wind_speed_10m` +
         `&temperature_unit=fahrenheit&wind_speed_unit=mph` +
         `&start_date=${dateStr}&end_date=${dateStr}&timezone=America%2FDenver`;
     try {
         const resp = await fetch(url);
         if (!resp.ok) return null;
-        const d = (await resp.json()).daily;
+        const json = await resp.json();
+        const d = json.daily;
+        const h = json.hourly;
         const out = {
             tempMax: d?.temperature_2m_max?.[0] ?? null,
             tempMin: d?.temperature_2m_min?.[0] ?? null,
             windMax: d?.wind_speed_10m_max?.[0] ?? null,
             weatherCode: d?.weather_code?.[0] ?? null,
+            hourlyTemp: h?.temperature_2m ?? null,
+            hourlyWind: h?.wind_speed_10m ?? null,
         };
         try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: out })); } catch (_) { }
         return out;
