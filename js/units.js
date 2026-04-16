@@ -52,3 +52,15 @@ export function temp(f) {
 export function tempUnit() {
     return metric ? '°C' : '°F';
 }
+
+// Format a decimal-hours offset from a start hour (e.g. 8 + 4.5 → "12:30 PM")
+export function formatClock(startHour, hoursOffset) {
+    const total = startHour + hoursOffset;
+    let h = Math.floor(total) % 24;
+    const m = Math.round((total - Math.floor(total)) * 60);
+    const rolloverH = m === 60 ? (h + 1) % 24 : h;
+    const rolloverM = m === 60 ? 0 : m;
+    const ampm = rolloverH >= 12 ? 'PM' : 'AM';
+    const h12 = rolloverH % 12 === 0 ? 12 : rolloverH % 12;
+    return `${h12}:${String(rolloverM).padStart(2, '0')} ${ampm}`;
+}

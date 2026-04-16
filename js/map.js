@@ -1,4 +1,4 @@
-import { findNearest, samplePoints } from './gpx.js';
+import { findNearest, samplePoints, routeBearingAt, windComponents } from './gpx.js';
 import { interpolateWeather, windDirLabel } from './weather.js';
 import * as units from './units.js';
 
@@ -6,6 +6,7 @@ let map = null;
 let routeLayer = null;
 let windLayer = null;
 let milemarkerLayer = null;
+let overviewLayer = null;
 let hoverMarker = null;
 let tooltipEl = null;
 let currentRouteData = null;
@@ -45,6 +46,10 @@ export function clearMap() {
         map.removeLayer(milemarkerLayer);
         milemarkerLayer = null;
     }
+    if (overviewLayer) {
+        map.removeLayer(overviewLayer);
+        overviewLayer = null;
+    }
     if (hoverMarker) {
         map.removeLayer(hoverMarker);
         hoverMarker = null;
@@ -76,6 +81,9 @@ let legendControl = null;
 
 export function renderRoute(routeData, weatherPoints) {
     clearMap();
+
+    // Stamp index for fast bearing lookups during hover
+    routeData.forEach((pt, i) => { pt.__idx = i; });
 
     currentRouteData = routeData;
     currentWeatherPoints = weatherPoints;
@@ -201,6 +209,25 @@ function showTooltip(event, pt, wx) {
         wx.windSpeed !== null
             ? `${Math.round(units.speed(wx.windSpeed))} ${units.speedUnit()} ${windDirLabel(wx.windDir)}`
             : 'No forecast';
+
+    // Headwind / tailwind relative to route direction
+    let windComp = '';
+    if (currentRouteData && wx.windSpeed !== null && wx.windDir !== null && pt.__idx !== undefined) {
+        const rb = routeBearingAt(currentRouteData, pt.__idx);
+        const comp = windComponents(wx.windDir, rb, wx.windSpeed);
+        if (comp) {
+            const mag = Math.abs(comp.headwind);
+            if (mag >= 1.5) {
+                const arrow = comp.headwind > 0 ? '↓' : '↑';
+                const kind = comp.headwind > 0 ? 'headwind' : 'tailwind';
+                const speed = Math.round(units.speed(mag));
+                windComp = `<div class="tt-row"><span class="tt-label">Effect</span><span class="tt-value">${arrow} ${speed} ${units.speedUnit()} ${kind}</span></div>`;
+            } else {
+                windComp = `<div class="tt-row"><span class="tt-label">Effect</span><span class="tt-value">crosswind</span></div>`;
+            }
+        }
+    }
+
     const modelInfo =
         wx.windModel || wx.tempModel
             ? `${wx.tempModel || '—'} temp · ${wx.windModel || '—'} wind`
@@ -212,6 +239,7 @@ function showTooltip(event, pt, wx) {
     <div class="tt-row"><span class="tt-label">Grade</span><span class="tt-value">${grade}</span></div>
     <div class="tt-row"><span class="tt-label">Temp</span><span class="tt-value">${tempDisplay}</span></div>
     <div class="tt-row"><span class="tt-label">Wind</span><span class="tt-value">${windDisplay}</span></div>
+    ${windComp}
     ${modelInfo ? `<div class="tt-source">${modelInfo}</div>` : ''}
   `;
 
@@ -221,7 +249,7 @@ function showTooltip(event, pt, wx) {
 
     // Keep tooltip in view
     const ttW = 180;
-    const ttH = 140;
+    const ttH = 160;
     if (x + ttW > mapRect.width) x = x - ttW - 32;
     if (y + ttH > mapRect.height) y = mapRect.height - ttH - 8;
     if (y < 0) y = 8;
@@ -355,4 +383,55 @@ export function highlightPoint(lat, lon, dist) {
 
 export function getMap() {
     return map;
+}
+
+const OVERVIEW_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#f59e0b', '#9333ea', '#0891b2'];
+
+export function overviewColor(i) {
+    return OVERVIEW_COLORS[i % OVERVIEW_COLORS.length];
+}
+
+// Render multiple routes at once (no weather, no mile markers).
+// days: [{ day, name, routeData }]
+export function renderOverview(days) {
+    clearMap();
+    overviewLayer = L.layerGroup().addTo(map);
+
+    const allBounds = [];
+    days.forEach((d, i) => {
+        if (!d.routeData || d.routeData.length === 0) return;
+        const color = overviewColor(i);
+        const latlngs = d.routeData.map((pt) => [pt.lat, pt.lon]);
+        const line = L.polyline(latlngs, {
+            color, weight: 4, opacity: 0.85,
+        }).addTo(overviewLayer);
+
+        line.bindTooltip(`Day ${d.day} — ${d.name}`, { sticky: true });
+        line.on('click', () => {
+            window.dispatchEvent(new CustomEvent('overview-day-click', { detail: { day: d.day } }));
+        });
+
+        // Start marker only, labeled with day number
+        const start = d.routeData[0];
+        L.circleMarker([start.lat, start.lon], {
+            radius: 9, color, fillColor: '#fff', fillOpacity: 1, weight: 3,
+        }).bindTooltip(`Day ${d.day}`, { permanent: false }).addTo(overviewLayer);
+
+        allBounds.push(line.getBounds());
+    });
+
+    if (allBounds.length > 0) {
+        let b = allBounds[0];
+        for (let i = 1; i < allBounds.length; i++) b = b.extend(allBounds[i]);
+        map.fitBounds(b.pad(0.08));
+    }
+}
+
+// Zoom map to a distance range on the current route (used by climb chips)
+export function zoomToRange(startIdx, endIdx) {
+    if (!currentRouteData) return;
+    const pts = currentRouteData.slice(startIdx, endIdx + 1).map((p) => [p.lat, p.lon]);
+    if (pts.length === 0) return;
+    const b = L.latLngBounds(pts);
+    map.fitBounds(b.pad(0.2));
 }

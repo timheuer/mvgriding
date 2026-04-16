@@ -20,12 +20,12 @@
 <body>
     <div class="app">
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" aria-label="Ride days">
             <div class="sidebar-header">
                 <h1>MVG Gravel Ride</h1>
                 <p>Apr 19–23, 2026 · SE Utah</p>
             </div>
-            <nav id="day-nav"></nav>
+            <nav id="day-nav" aria-label="Select ride day"></nav>
         </aside>
 
         <!-- Main content -->
@@ -38,29 +38,67 @@
                     <span id="route-dist"></span>
                     <span id="route-elev"></span>
                     <span id="route-time"></span>
+                    <span id="route-finish"></span>
                 </div>
-                <div id="weather-status"></div>
-                <label class="unit-toggle">
-                    <input type="checkbox" id="unit-switch" />
-                    <span class="unit-label" data-metric="km · m · °C" data-imperial="mi · ft · °F">km · m · °C</span>
-                </label>
+
+                <div class="controls">
+                    <label class="pace-control" title="Average riding pace">
+                        <span class="pace-label">Pace</span>
+                        <input type="range" id="pace-slider" min="8" max="18" step="0.5" value="13"
+                            aria-label="Average riding pace" />
+                        <span class="pace-value" id="pace-value">13 mph</span>
+                    </label>
+                    <button id="refresh-weather" class="icon-btn" title="Refresh weather" aria-label="Refresh weather">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10" />
+                            <polyline points="1 20 1 14 7 14" />
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                        </svg>
+                    </button>
+                    <label class="unit-toggle" aria-label="Toggle between metric and imperial units">
+                        <input type="checkbox" id="unit-switch" />
+                        <span class="unit-label" data-metric="km · m · °C" data-imperial="mi · ft · °F">km · m ·
+                            °C</span>
+                    </label>
+                </div>
+
+                <!-- visually-hidden live region for screen readers -->
+                <div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
             </div>
 
             <!-- Map -->
             <div class="map-wrap">
                 <div id="map"></div>
-                <div id="map-tooltip"></div>
-                <div id="loading" style="display: none;">
+                <div id="map-tooltip" role="tooltip"></div>
+                <div id="weather-toast" class="toast" role="status" aria-live="polite"></div>
+                <div id="loading" class="overlay" style="display: none;">
                     <div class="spinner"></div>
+                    <div id="loading-label" class="overlay-label"></div>
+                </div>
+                <div id="error-state" class="overlay error-overlay" style="display: none;">
+                    <div class="error-icon" aria-hidden="true">⚠</div>
+                    <div id="error-message">Something went wrong</div>
+                    <button id="error-retry" class="btn-primary">Retry</button>
                 </div>
             </div>
 
-            <!-- Elevation chart -->
+            <!-- Climbs strip + elevation chart -->
+            <div id="climbs-panel" class="climbs-panel" hidden>
+                <div class="climbs-label">Climbs</div>
+                <div id="climbs-list" class="climbs-list"></div>
+            </div>
             <div class="chart-wrap">
                 <canvas id="elevation-chart"></canvas>
             </div>
+
+            <!-- Overview table (shown only in overview mode) -->
+            <div id="overview-table" class="overview-table" hidden></div>
         </div>
     </div>
+
+    <!-- Prefetch last-used route for faster load -->
+    <link id="route-prefetch" rel="prefetch" as="fetch" />
 
     <!-- App scripts -->
     <script type="module" src="js/app.js"></script>

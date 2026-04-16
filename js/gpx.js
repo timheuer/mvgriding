@@ -154,3 +154,45 @@ export function findNearest(routeData, lat, lon) {
     }
     return closest;
 }
+
+// Bearing in degrees (0=N, 90=E) from p1 → p2
+export function bearingDeg(lat1, lon1, lat2, lon2) {
+    const toRadLocal = (d) => (d * Math.PI) / 180;
+    const toDeg = (r) => (r * 180) / Math.PI;
+    const dLon = toRadLocal(lon2 - lon1);
+    const y = Math.sin(dLon) * Math.cos(toRadLocal(lat2));
+    const x =
+        Math.cos(toRadLocal(lat1)) * Math.sin(toRadLocal(lat2)) -
+        Math.sin(toRadLocal(lat1)) * Math.cos(toRadLocal(lat2)) * Math.cos(dLon);
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+// Route bearing at index i (looks ahead a few points for stability)
+export function routeBearingAt(routeData, i, lookahead = 3) {
+    const a = routeData[Math.max(0, i - lookahead)];
+    const b = routeData[Math.min(routeData.length - 1, i + lookahead)];
+    if (a === b) return 0;
+    return bearingDeg(a.lat, a.lon, b.lat, b.lon);
+}
+
+// Compute how much of a wind (coming FROM windFromDeg) is head/tail/cross
+// relative to a rider traveling along routeBearing.
+// Returns { headwind, crosswind, kind: 'head'|'tail'|'cross' }
+// headwind > 0 means headwind, < 0 means tailwind.
+export function windComponents(windFromDeg, routeBearing, windSpeed) {
+    if (windFromDeg === null || windSpeed === null) return null;
+    // Rider's direction of travel
+    const travelDir = routeBearing;
+    // Angle between travel direction and where wind is coming FROM
+    let theta = ((windFromDeg - travelDir + 540) % 360) - 180; // -180..180
+    const rad = (theta * Math.PI) / 180;
+    // Wind coming from dead ahead => pure headwind (+)
+    const headwind = windSpeed * Math.cos(rad);
+    const crosswind = windSpeed * Math.sin(rad);
+    let kind;
+    const absT = Math.abs(theta);
+    if (absT < 60) kind = 'head';
+    else if (absT > 120) kind = 'tail';
+    else kind = 'cross';
+    return { headwind, crosswind, kind, angle: theta };
+}
