@@ -22,9 +22,11 @@ import {
     renderOverview,
     overviewColor,
     zoomToRange,
+    highlightClimbOnMap,
 } from './map.js';
 import { renderElevationProfile, destroyChart, highlightClimb } from './elevation.js';
 import { detectClimbs, climbDifficulty } from './climbs.js';
+import * as flyover from './flyover.js';
 import * as units from './units.js';
 
 const DAYS = [
@@ -45,6 +47,7 @@ let lastDay = null;             // day object
 let lastWeatherPoints = null;
 let lastSampled = null;         // sampled points used for weather (for recompute on pace change)
 let currentClimbs = [];
+let selectedClimbIdx = null;
 let pace = parseFloat(localStorage.getItem(PACE_KEY)) || DEFAULT_PACE_MPH;
 
 // Per-day cache of parsed GPX/routeData (avoid re-fetch when navigating)
@@ -183,6 +186,7 @@ function renderClimbs(climbs) {
     const panel = document.getElementById('climbs-panel');
     const list = document.getElementById('climbs-list');
     list.innerHTML = '';
+    selectedClimbIdx = null;
 
     if (!climbs || climbs.length === 0) {
         panel.hidden = true;
@@ -194,6 +198,7 @@ function renderClimbs(climbs) {
         const chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'climb-chip';
+        chip.dataset.climbIdx = String(idx);
         const diff = climbDifficulty(c.avgGrade);
         const lenDisp = units.dist(c.lengthMi).toFixed(1);
         const gainDisp = Math.round(units.elev(c.gainFt)).toLocaleString();
@@ -204,13 +209,44 @@ function renderClimbs(climbs) {
           <span>· ${gainDisp} ${units.elevUnit()}</span>
         `;
         chip.addEventListener('click', () => {
-            zoomToRange(c.startIdx, c.endIdx);
-            highlightClimb({ startIdx: c.startIdx, endIdx: c.endIdx });
+            if (selectedClimbIdx === idx) {
+                // Second click on the same chip → deselect
+                deselectClimb();
+            } else {
+                selectClimb(idx, c);
+            }
         });
-        chip.addEventListener('mouseenter', () => highlightClimb({ startIdx: c.startIdx, endIdx: c.endIdx }));
-        chip.addEventListener('mouseleave', () => highlightClimb(null));
+        chip.addEventListener('mouseenter', () => {
+            if (selectedClimbIdx === null) {
+                highlightClimb({ startIdx: c.startIdx, endIdx: c.endIdx });
+                highlightClimbOnMap(c.startIdx, c.endIdx, 'hover');
+            }
+        });
+        chip.addEventListener('mouseleave', () => {
+            if (selectedClimbIdx === null) {
+                highlightClimb(null);
+                highlightClimbOnMap(null);
+            }
+        });
         list.appendChild(chip);
     });
+}
+
+function selectClimb(idx, c) {
+    selectedClimbIdx = idx;
+    document.querySelectorAll('.climb-chip').forEach((chip) => {
+        chip.classList.toggle('selected', parseInt(chip.dataset.climbIdx) === idx);
+    });
+    zoomToRange(c.startIdx, c.endIdx);
+    highlightClimb({ startIdx: c.startIdx, endIdx: c.endIdx });
+    highlightClimbOnMap(c.startIdx, c.endIdx, 'selected');
+}
+
+function deselectClimb() {
+    selectedClimbIdx = null;
+    document.querySelectorAll('.climb-chip.selected').forEach((c) => c.classList.remove('selected'));
+    highlightClimb(null);
+    highlightClimbOnMap(null);
 }
 
 // --- Day-button weather pill ---
@@ -291,6 +327,11 @@ async function selectDay(dayKey) {
     setActiveNav(dayKey);
     hideError();
     showToast(null);
+    flyover.stop();
+
+    // Disable flyover button in overview mode
+    const flyBtn = document.getElementById('flyover-btn');
+    if (flyBtn) flyBtn.disabled = dayKey === 'overview';
 
     if (dayKey === 'overview') {
         window.location.hash = 'day=overview';
@@ -450,6 +491,12 @@ async function handlePaceChange(newPace) {
     document.getElementById('pace-value').textContent =
         `${Math.round(units.speed(pace))} ${units.speedUnit()}`;
 
+    // If a flyover is in progress, rescale its duration to the new pace
+    // while preserving current position.
+    if (flyover.getState() !== 'stopped') {
+        flyover.setDuration(flyoverDurationForPace(pace));
+    }
+
     if (currentDay === 'overview') {
         // Re-render the table with the new pace
         const loaded = DAYS.map((d) => ({ ...d, routeData: routeCache.get(d.day)?.routeData }))
@@ -515,7 +562,89 @@ function onKeyDown(e) {
     } else if (e.key === '0' || e.key.toLowerCase() === 'o') {
         selectDay('overview');
         e.preventDefault();
+    } else if (e.key === 'Escape') {
+        if (selectedClimbIdx !== null) {
+            deselectClimb();
+            e.preventDefault();
+        }
     }
+}
+
+// --- Flyover playback ---
+
+// Playback duration scales with pace: 30s at 13 mph (reference), proportionally
+// shorter when faster and longer when slower. Clamped so it's never absurd.
+const FLYOVER_BASE_MS = 30_000;
+const FLYOVER_REF_PACE = 13;
+function flyoverDurationForPace(p) {
+    const raw = FLYOVER_BASE_MS * (FLYOVER_REF_PACE / Math.max(1, p));
+    return Math.max(12_000, Math.min(60_000, raw));
+}
+
+function setupFlyoverUI() {
+    const btn = document.getElementById('flyover-btn');
+    const playIcon = btn.querySelector('.flyover-play');
+    const pauseIcon = btn.querySelector('.flyover-pause');
+    const hud = document.getElementById('flyover-hud');
+    const stopBtn = document.getElementById('flyover-stop');
+    const progressEl = document.getElementById('flyover-progress');
+    const barEl = document.getElementById('flyover-bar');
+    const distEl = document.getElementById('flyover-dist');
+    const clockEl = document.getElementById('flyover-clock');
+
+    function togglePlay() {
+        if (currentDay === 'overview' || !lastRouteData) return;
+        const s = flyover.getState();
+        if (s === 'stopped') {
+            flyover.start(lastRouteData, { durationMs: flyoverDurationForPace(pace) });
+        } else if (s === 'playing') {
+            flyover.pause();
+        } else if (s === 'paused') {
+            flyover.resume();
+        }
+    }
+
+    btn.addEventListener('click', togglePlay);
+    stopBtn.addEventListener('click', () => flyover.stop());
+
+    // Click-to-seek on the progress bar
+    barEl.addEventListener('click', (e) => {
+        const rect = barEl.getBoundingClientRect();
+        const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        flyover.seek(frac);
+    });
+
+    // Space bar toggles when no form field is focused
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== ' ' && e.code !== 'Space') return;
+        if (e.target.matches('input, textarea, [contenteditable], button')) return;
+        if (currentDay === 'overview' || !lastRouteData) return;
+        e.preventDefault();
+        togglePlay();
+    });
+
+    flyover.onStateChange((s) => {
+        const playing = s === 'playing';
+        btn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+        playIcon.style.display = playing ? 'none' : '';
+        pauseIcon.style.display = playing ? '' : 'none';
+        btn.title = playing ? 'Pause flyover' : (s === 'paused' ? 'Resume flyover' : 'Fly the route');
+        if (s === 'stopped') {
+            hud.hidden = true;
+            progressEl.style.width = '0%';
+        } else {
+            hud.hidden = false;
+        }
+    });
+
+    flyover.onUpdate(({ fraction, dist }) => {
+        progressEl.style.width = (fraction * 100).toFixed(2) + '%';
+        distEl.textContent = `${units.dist(dist).toFixed(1)} ${units.distUnit()}`;
+        // Clock uses real ride pace (not compressed playback time) so it
+        // matches the "~finish time" shown in the header.
+        const hoursOffset = dist / pace;
+        clockEl.textContent = units.formatClock(DEFAULT_START_HOUR, hoursOffset);
+    });
 }
 
 // --- Init ---
@@ -585,6 +714,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         prefetchDaySummaries();
     });
+
+    // Flyover playback
+    setupFlyoverUI();
 
     // Keyboard navigation
     document.addEventListener('keydown', onKeyDown);

@@ -218,6 +218,93 @@ body {
     cursor: default;
 }
 
+/* Flyover playback */
+#flyover-btn[aria-pressed="true"] {
+    background: var(--blue-500);
+    color: #fff;
+    border-color: var(--blue-500);
+}
+#flyover-btn[aria-pressed="true"]:hover {
+    background: var(--blue-600);
+}
+
+.flyover-hud {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    z-index: 600;
+    background: rgba(17, 24, 39, 0.92);
+    color: #fff;
+    border-radius: 999px;
+    padding: 6px 10px 6px 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    max-width: 90%;
+    min-width: 280px;
+}
+.flyover-hud[hidden] { display: none; }
+
+.flyover-stop-btn {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: none !important;
+    color: #fff !important;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+}
+.flyover-stop-btn:hover {
+    background: rgba(255, 255, 255, 0.28) !important;
+}
+
+.flyover-info {
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    min-width: 140px;
+}
+
+.flyover-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+    min-width: 60px;
+    cursor: pointer;
+}
+
+.flyover-progress {
+    height: 100%;
+    width: 0%;
+    background: var(--blue-500);
+    transition: width 0.05s linear;
+}
+
+/* Pulsing flyover marker on the map */
+.flyover-marker {
+    background: none !important;
+    border: none !important;
+}
+.flyover-marker .fm-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--blue-500);
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+    animation: fm-pulse 1.2s infinite;
+}
+@keyframes fm-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+    70%  { box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
 .unit-toggle {
     display: flex;
     align-items: center;
@@ -587,6 +674,16 @@ body {
 
 .climb-chip:hover {
     background: var(--gray-100);
+}
+
+.climb-chip.selected {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: var(--gray-900);
+}
+
+.climb-chip.selected:hover {
+    background: #fde68a;
 }
 
 .climb-chip .climb-grade {

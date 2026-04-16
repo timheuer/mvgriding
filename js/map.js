@@ -8,6 +8,8 @@ let windLayer = null;
 let milemarkerLayer = null;
 let overviewLayer = null;
 let hoverMarker = null;
+let flyoverMarker = null;
+let climbHighlightLayer = null;
 let tooltipEl = null;
 let currentRouteData = null;
 let currentWeatherPoints = null;
@@ -53,6 +55,14 @@ export function clearMap() {
     if (hoverMarker) {
         map.removeLayer(hoverMarker);
         hoverMarker = null;
+    }
+    if (flyoverMarker) {
+        map.removeLayer(flyoverMarker);
+        flyoverMarker = null;
+    }
+    if (climbHighlightLayer) {
+        map.removeLayer(climbHighlightLayer);
+        climbHighlightLayer = null;
     }
     if (tooltipEl) tooltipEl.style.display = 'none';
     currentRouteData = null;
@@ -434,4 +444,79 @@ export function zoomToRange(startIdx, endIdx) {
     if (pts.length === 0) return;
     const b = L.latLngBounds(pts);
     map.fitBounds(b.pad(0.2));
+}
+
+// Flyover marker: a pulsing dot moved along the route during playback.
+// Caller drives position via setFlyoverPosition(lat, lon). Map auto-pans if
+// the marker drifts outside a central viewport box.
+export function showFlyoverMarker(lat, lon) {
+    if (!map) return;
+    if (!flyoverMarker) {
+        const icon = L.divIcon({
+            className: 'flyover-marker',
+            html: '<div class="fm-dot"></div>',
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
+        });
+        flyoverMarker = L.marker([lat, lon], { icon, interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(map);
+    } else {
+        flyoverMarker.setLatLng([lat, lon]);
+    }
+}
+
+export function setFlyoverPosition(lat, lon) {
+    if (!flyoverMarker) { showFlyoverMarker(lat, lon); return; }
+    flyoverMarker.setLatLng([lat, lon]);
+    // Keep marker in view: if it drifts into the outer 15% of the map, pan.
+    const pt = map.latLngToContainerPoint([lat, lon]);
+    const size = map.getSize();
+    const marginX = size.x * 0.2;
+    const marginY = size.y * 0.2;
+    if (pt.x < marginX || pt.x > size.x - marginX || pt.y < marginY || pt.y > size.y - marginY) {
+        map.panTo([lat, lon], { animate: true, duration: 0.5, easeLinearity: 0.5 });
+    }
+}
+
+export function hideFlyoverMarker() {
+    if (flyoverMarker) {
+        map.removeLayer(flyoverMarker);
+        flyoverMarker = null;
+    }
+}
+
+// Highlight a climb segment on the current route with an overlay polyline.
+// Pass null to clear. `mode` is 'hover' (subtle) or 'selected' (bold).
+export function highlightClimbOnMap(startIdx, endIdx, mode = 'selected') {
+    if (climbHighlightLayer) {
+        map.removeLayer(climbHighlightLayer);
+        climbHighlightLayer = null;
+    }
+    if (startIdx === null || startIdx === undefined || !currentRouteData) return;
+
+    const segment = currentRouteData
+        .slice(startIdx, endIdx + 1)
+        .map((p) => [p.lat, p.lon]);
+    if (segment.length < 2) return;
+
+    const weight = mode === 'selected' ? 7 : 6;
+    const color = mode === 'selected' ? '#f59e0b' : '#fbbf24';
+    const opacity = mode === 'selected' ? 0.95 : 0.75;
+
+    climbHighlightLayer = L.layerGroup().addTo(map);
+
+    // White halo for contrast on any basemap
+    L.polyline(segment, {
+        color: '#ffffff',
+        weight: weight + 4,
+        opacity: 0.8,
+        interactive: false,
+    }).addTo(climbHighlightLayer);
+
+    // Main amber highlight
+    L.polyline(segment, {
+        color,
+        weight,
+        opacity,
+        interactive: false,
+    }).addTo(climbHighlightLayer);
 }

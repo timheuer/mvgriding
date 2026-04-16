@@ -44,10 +44,21 @@
                 <div class="controls">
                     <label class="pace-control" title="Average riding pace">
                         <span class="pace-label">Pace</span>
-                        <input type="range" id="pace-slider" min="8" max="18" step="0.5" value="13"
+                        <input type="range" id="pace-slider" min="8" max="25" step="0.5" value="13"
                             aria-label="Average riding pace" />
                         <span class="pace-value" id="pace-value">13 mph</span>
                     </label>
+                    <button id="flyover-btn" class="icon-btn" title="Fly the route" aria-label="Fly the route"
+                        aria-pressed="false">
+                        <svg class="flyover-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5,3 21,12 5,21" />
+                        </svg>
+                        <svg class="flyover-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
+                            style="display:none;">
+                            <rect x="5" y="4" width="5" height="16" rx="1" />
+                            <rect x="14" y="4" width="5" height="16" rx="1" />
+                        </svg>
+                    </button>
                     <button id="refresh-weather" class="icon-btn" title="Refresh weather" aria-label="Refresh weather">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -72,6 +83,19 @@
                 <div id="map"></div>
                 <div id="map-tooltip" role="tooltip"></div>
                 <div id="weather-toast" class="toast" role="status" aria-live="polite"></div>
+                <div id="flyover-hud" class="flyover-hud" hidden>
+                    <button id="flyover-stop" class="icon-btn flyover-stop-btn" title="Stop flyover"
+                        aria-label="Stop flyover">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="1.5"/></svg>
+                    </button>
+                    <div class="flyover-info">
+                        <span id="flyover-dist">0.0 mi</span>
+                        <span id="flyover-clock">8:00 AM</span>
+                    </div>
+                    <div class="flyover-bar" id="flyover-bar">
+                        <div class="flyover-progress" id="flyover-progress"></div>
+                    </div>
+                </div>
                 <div id="loading" class="overlay" style="display: none;">
                     <div class="spinner"></div>
                     <div id="loading-label" class="overlay-label"></div>
